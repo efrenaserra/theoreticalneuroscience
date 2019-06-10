@@ -38,18 +38,32 @@ Policy iteration: involves two elements.
 import math, pylab
 import random
 
-class Action_value_vector(object):
-    def __init__(self, N):
-        self.N = N
-        self.m = [0. for n in range(N)]
+def Kronecker_delta(a, b):
+    res = 0
+    if a == b:
+        res = 1
+    return res
 
-beta = 0.5
+class Action_value_vector(object):
+    def __init__(self, actions, values):
+        self.actions = actions
+        """ The action values vector """
+        self.m = dict(map(lambda k,v: (k,v), actions, values))
+        """ The action values history vector """
+        empty_values = [[] for n in range(len(actions))]
+        self.P = dict(map(lambda k,v: (k,v), actions, empty_values))
+
+    def __repr__(self):
+        return "<m: %s>"%(self.m)
+
+beta = 1.0
 epsilon = 0.5
 
 class Maze_node(object):
-    def __init__(self, name, reward_vector, is_absorbing=False):
+    def __init__(self, name, reward_vector, action_values, is_absorbing=False):
         self.name = name
         self.reward_vector = reward_vector
+        self.action_values = action_values
         self.is_absorbing = is_absorbing
 
         """ The predicted future reward: v(u) = w(u) """
@@ -58,6 +72,9 @@ class Maze_node(object):
 
         self.left_node = None
         self.right_node = None
+
+    def __repr__(self):
+        return "<name: %s weight: %0.2f m: %s>"%(self.name, self.weight, self.action_values)
 
     def immediate_reward(self, action):
         if action == 'L':
@@ -69,7 +86,6 @@ class Maze_node(object):
         return r
 
     def modify_weight(self, action):
-        print(self.name)
         r = self.immediate_reward(action)
         v_at_u = self.weight
         v_at_u_prime = 0.
@@ -84,6 +100,30 @@ class Maze_node(object):
 
         self.weight = self.weight + epsilon * delta
         self.weight_history.append(self.weight)
+
+        print(self)
+
+    def modify_action_values(self, action):
+        r = self.immediate_reward(action)
+        v_at_u = self.weight
+        v_at_u_prime = 0.
+
+        if action == 'L' and self.left_node:
+            v_at_u_prime = self.left_node.weight
+
+        if action == 'R' and self.right_node:
+            v_at_u_prime = self.right_node.weight
+
+        delta = r + (v_at_u_prime - v_at_u)
+
+        """ Policy improvement or actor learning rule """
+        for a in self.action_values.actions:
+            self.action_values.m[a] = \
+            self.action_values.m[a] + \
+            epsilon * (Kronecker_delta(action, a) - softmax(beta, a, self)) * delta
+            self.action_values.P[a].append(softmax(beta, a, self))
+
+        print(self)
 
     def next_location(self, action):
         if action == 'L':
@@ -111,39 +151,78 @@ class Maze(object):
                 node = node.next_location(action)
             n += 1
 
+    def policy_improvement(self, max_trials):
+        n = 0
+        while n < max_trials:
+            node = self.start_location
+            action = random.choice(['R', 'L'])
+            node.modify_action_values(action)
+            node = node.next_location(action)
+            while not node.is_absorbing:
+                action = random.choice(['L', 'R'])
+                node.modify_action_values(action)
+                node = node.next_location(action)
+            n += 1
+
 """
 The softmax distribution:
     P[L] = exp(Beta * m_L)/(exp(Beta * m_L) + exp(Beta * m_R))
     P[R] = exp(Beta * m_L)/(exp(Beta * m_R) + exp(Beta * m_R))
 """
-def softmax(a, action_values):
+def softmax(beta, action, node):
     Z = 0.
-    for n in range(action_values.N):
-        Z += math.exp(beta * action_values.m[n]) 
+    for a in node.action_values.actions:
+        Z += math.exp(beta * node.action_values.m[a])
 
-    return math.exp(beta * action_values.m[a])/Z
+    return math.exp(beta * node.action_values.m[action])/Z
 
 def main():
-    n_trials = 60
-    maze = Maze(start_location=Maze_node('A', [0., 0.]),
-                end_locations=[
-                        Maze_node('B', [0., 5.]),
-                        Maze_node('C', [2., 0.]),
-                    ])
+    n_trials = 50
+    maze = Maze(start_location=Maze_node('A', [0., 0.],
+                                         action_values=Action_value_vector(
+                                                 actions=['L', 'R'],
+                                                 values=[0., 0.],)), end_locations=[Maze_node('B',
+                                                 [0., 5.], action_values=Action_value_vector(
+                                                         actions=['L', 'R'],
+                                                         values=[0., 0.],)),
+                                                 Maze_node('C', [2., 0.], action_values=Action_value_vector(
+                                                         actions=['L', 'R'],
+                                                         values=[0., 0.],)),],)
 
     maze.start_location.left_node = maze.end_locations[0]
     maze.start_location.right_node = maze.end_locations[1]
     for node in maze.end_locations:
-        node.left_node = Maze_node('', [0., 0.], is_absorbing=True)
-        node.right_node = Maze_node('', [0., 0.], is_absorbing=True)
+        node.left_node = Maze_node('', [0., 0.],
+                                   action_values=None,
+                                   is_absorbing=True)
+        node.right_node = Maze_node('', [0., 0.],
+                                    action_values=None,
+                                    is_absorbing=True)
 
     maze.policy_evaluation(n_trials)
 
-    pylab.plot(maze.start_location.weight_history[:int(n_trials/2)])
-    pylab.plot(maze.end_locations[0].weight_history[:int(n_trials/2)])
-    pylab.plot(maze.end_locations[1].weight_history[:int(n_trials/2)])
+    pylab.figure(1)
+    pylab.plot(maze.start_location.weight_history[:30])
+    pylab.plot(maze.end_locations[0].weight_history[:30])
+    pylab.plot(maze.end_locations[1].weight_history[:30])
     pylab.ylim(0., 5.)
     pylab.legend(('w(A)','w(B)','w(C)',), loc='upper right')
+
+    maze.policy_improvement(2*n_trials)
+
+    pylab.figure(2)
+    pylab.plot(maze.start_location.action_values.P['L'][:])
+    pylab.plot(maze.end_locations[0].action_values.P['L'][:])
+    pylab.plot(maze.end_locations[1].action_values.P['L'][:])
+    pylab.ylim(0., 1.0)
+    pylab.legend(('P[L; u = A]','P[L; u = B]','P[L; u = C]',), loc='upper right')
+
+    pylab.figure(3)
+    pylab.plot(maze.start_location.action_values.P['R'][:])
+    pylab.plot(maze.end_locations[0].action_values.P['R'][:])
+    pylab.plot(maze.end_locations[1].action_values.P['R'][:])
+    pylab.ylim(0., 1.0)
+    pylab.legend(('P[R; u = A]','P[R; u = B]','P[R; u = C]',), loc='upper right')
 
 if __name__ == "__main__":
     main()
