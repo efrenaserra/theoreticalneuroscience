@@ -2,11 +2,20 @@
 """
 Created on Wed Jun  5 08:52:57 2019
 
-Classical Conditioning and Reinforcement Learning
+Theoretical Neuroscience by Peter Dayan and L. F. Abbott
 
-Sequential Action Choice
+Chapter 9 Classical Conditioning and Reinforcement Learning
 
-reward is based on a sequence of actions
+In classic Pavlovian experiment, the food is the unconditioned stimulus and
+the bell is the conditioned stimulus (it only works under the condition that
+there has been prior learning). This chapter refers to stimuli, rewards and
+expecation of reward.
+
+How does one predict reward?! The Rescorla-Wagner Rule.
+
+9.4 Sequential Action Choice
+
+Reward is based on a sequence of actions
 
 0----B----5
      |    2----C----0
@@ -49,6 +58,7 @@ class Action_value_vector(object):
         self.actions = actions
         """ The action values vector """
         self.m = dict(map(lambda k,v: (k,v), actions, values))
+
         """ The action values history vector """
         empty_values = [[] for n in range(len(actions))]
         self.P = dict(map(lambda k,v: (k,v), actions, empty_values))
