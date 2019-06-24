@@ -18,12 +18,12 @@ How does one predict reward?! The Rescorla-Wagner Rule.
 Reward is based on a sequence of actions
 
 0----B----5
-     |    2----C----0
-     |         |
-     +----A----+
-          ^
-          |
-        enter
+     |        2----C----0
+     |             |
+     +------A------+
+            ^
+            |
+          Enter
 
 Goal: To optimize the total reward, i.e., moving left at A and right at B.
 Method: Policy iteration; the reiforcement learning version of policy iteration
@@ -48,27 +48,89 @@ import math, pylab
 import random
 
 def Kronecker_delta(a, b):
+    """The Kronecker delta function.
+    
+    Parameters
+    ----------
+    a : integer
+    b : integer
+    """
     res = 0
     if a == b:
         res = 1
     return res
 
+def softmax(beta, action, node):
+    """The softmax distribution.
+
+        P[L] = exp(Beta * m_L)/(exp(Beta * m_L) + exp(Beta * m_R))
+        P[R] = exp(Beta * m_L)/(exp(Beta * m_R) + exp(Beta * m_R))
+
+    Parameters
+    ----------
+    beta : float
+    action : list
+    node : @Maze_node
+
+    Raises
+    ------
+    """
+
+    Z = 0.
+    for a in node.action_values.actions:
+        Z += math.exp(beta * node.action_values.m[a])
+
+    return math.exp(beta * node.action_values.m[action])/Z
+
 class Action_value_vector(object):
+    """The Action_value_vector class.
+
+    Attributes
+    ----------
+    actions : list
+        a list of string to represent actions
+
+    m : dictionary
+        a dictionary representing the action values vector per action
+
+    Methods
+    -------
+    """
+
     def __init__(self, actions, values):
+        """
+        Parameters
+        ----------
+        actions : list
+        values : list
+        
+        Raises
+        ------
+        """
+
         self.actions = actions
-        """ The action values vector """
         self.m = dict(map(lambda k,v: (k,v), actions, values))
 
-        """ The action values history vector """
         empty_values = [[] for n in range(len(actions))]
         self.P = dict(map(lambda k,v: (k,v), actions, empty_values))
 
     def __repr__(self):
+        """
+        Parameters
+        ----------
+        self : object
+        
+        Raises
+        ------
+        """
         return "<m: %s>"%(self.m)
 
 beta = 1.0
 epsilon = 0.5
 
+"""
+The Maze_node class:
+"""
 class Maze_node(object):
     def __init__(self, name, reward_vector, action_values, is_absorbing=False):
         self.name = name
@@ -143,6 +205,9 @@ class Maze_node(object):
 
         return node
 
+"""
+The Maze class:
+"""
 class Maze(object):
     def __init__(self, start_location, end_locations):
         self.start_location = start_location
@@ -174,17 +239,6 @@ class Maze(object):
                 node = node.next_location(action)
             n += 1
 
-"""
-The softmax distribution:
-    P[L] = exp(Beta * m_L)/(exp(Beta * m_L) + exp(Beta * m_R))
-    P[R] = exp(Beta * m_L)/(exp(Beta * m_R) + exp(Beta * m_R))
-"""
-def softmax(beta, action, node):
-    Z = 0.
-    for a in node.action_values.actions:
-        Z += math.exp(beta * node.action_values.m[a])
-
-    return math.exp(beta * node.action_values.m[action])/Z
 
 def main():
     n_trials = 50
@@ -233,6 +287,10 @@ def main():
     pylab.plot(maze.end_locations[1].action_values.P['R'][:])
     pylab.ylim(0., 1.0)
     pylab.legend(('P[R; u = A]','P[R; u = B]','P[R; u = C]',), loc='upper right')
+
+"""
+The main entry point
+"""
 
 if __name__ == "__main__":
     main()
