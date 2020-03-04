@@ -77,7 +77,7 @@ def Kronecker_delta(a, b):
 
     return res
 
-def softmax(beta, action_values, action):
+def softmax(beta, action_values, action) -> float:
     """The softmax distribution.
         P[b] = exp(Beta * m_b)/(exp(Beta * m_b) + exp(Beta * m_y))
         P[y] = exp(Beta * m_y)/(exp(Beta * m_b) + exp(Beta * m_y))
@@ -153,7 +153,7 @@ class Flower(object):
         return "<color: %s location: %s nectar_volume: %f>"%(self.color, self.location, self.nectar_volume)
 
     def get_nectar_volume(self) -> float:
-        return self.nectar_volume
+        return random.uniform(0., self.nectar_volume)
 
     def set_nectar_volume(self, new_nectar_volume: float) -> None:
         self.nectar_volume = new_nectar_volume
@@ -186,32 +186,32 @@ class Bee(object):
         self.the_flowers = self.the_garden.the_flowers
 
         """ Statistic variables """
+        self.m_history = None
         self.sum_visits = None
-        actions = self.action_values.actions
-        self.m_history = dict(map(lambda k,v: (k,v), actions, [[] for n in range(len(actions))]))
 
     def __repr__(self):
         return "<m: %s>"%(self.action_values)
 
     def stochastic_policy(self) -> Color:
-        SP = dict(map(lambda k,v: (k,v), self.action_values.actions, [0.0]))
-
-        # Compute probabilities for each action
+        """
+        Compute P[mb] and P[|my]
+        """
+        P = dict(map(lambda k,v: (k,v), self.action_values.actions, [0.0]))
         for action in self.action_values.actions:
-            SP[action] = softmax(Beta, self.action_values, action)
+            P[action] = softmax(Beta, self.action_values, action)
 
-        # Select action value with maximum probability
+        # Select action value with max probability
         static_action = None
         stochastic_probability = 0.
-        for action in SP:
-            if SP[action] > stochastic_probability:
-                stochastic_probability = SP[action]
+        for action in P:
+            print('action: %s; P[%s]: %f'%(action,action,P[action]))
+            if P[action] > stochastic_probability:
+                stochastic_probability = P[action]
                 static_action = action
 
-        print(static_action)
         return static_action
 
-    def modify_action_values(self, t: int, flower: Flower):
+    def update_action_values(self, t: int, flower: Flower):
         """
         Parameters:
             t : int - the simulation time step.
@@ -225,43 +225,46 @@ class Bee(object):
         self.action_values.m[action] = self.action_values.m[action] + (Epsilon * delta)
 
         """ Update statistics """
-        self.m_history[action].append(self.action_values.m[action])
         for k in self.action_values.m.keys():
             if k is not action:
+                self.m_history[k][t+1] = self.action_values.m[k] + \
+                              softmax(Beta, self.action_values, k)
                 self.sum_visits[k][t+1] = self.sum_visits[k][t]
             else:
+                self.m_history[action][t+1] = self.action_values.m[action] + \
+                      softmax(Beta, self.action_values, action)
                 self.sum_visits[action][t+1] = self.sum_visits[action][t] + 1
 
     def policy_evaluation(self, n_flower_visits: int) -> None:
         N = math.ceil(self.the_garden.n_flowers_per_color/2)
+        self.m_history = dict(map(lambda k,v: (k,v), self.action_values.actions, \
+                                   [ [0. for n in range(n_flower_visits)] for n in range(len(self.action_values.actions)) ] ))
         self.sum_visits = dict(map(lambda k,v: (k,v), self.action_values.actions, \
                                    [ [0. for n in range(n_flower_visits)] for n in range(len(self.action_values.actions)) ] ))
 
         for n in range(0, int(n_flower_visits/2)):
-            if random.randint(0, self.the_garden.n_flowers_per_color) < N:
+            if random.randint(0, self.the_garden.n_flowers_per_color) <= N:
                 action = self.stochastic_policy()
                 flower = self.the_garden.get_flower(action)
             else:
                 flower = self.the_garden.get_flower(random.choice([Color.b, Color.y]))
-
-            self.modify_action_values(n, flower)
+            self.update_action_values(n, flower)
 
         for action in self.action_values.actions:
             for i in range(self.the_garden.n_flowers_per_color):
                 self.the_flowers[action][i].set_nectar_volume((2 if action is Color.b else 1))
 
         for n in range(int(n_flower_visits/2), n_flower_visits - 1):
-            if random.randint(0, self.the_garden.n_flowers_per_color) < N:
+            if random.randint(0, self.the_garden.n_flowers_per_color) <= N:
                 action = self.stochastic_policy()
                 flower = self.the_garden.get_flower(action)
             else:
                 flower = self.the_garden.get_flower(random.choice([Color.b, Color.y]))
-
-            self.modify_action_values(n, flower)
+            self.update_action_values(n, flower)
 
 def main():
     n_flower_visits: int = 200
-    the_garden = Garden([Color.b, Color.y], 2)
+    the_garden = Garden([Color.b, Color.y], 4)
 
     bee = Bee(action_values=Action_value_vector(actions=[Color.b, Color.y], values=[0., 0.]), \
               garden=the_garden)
@@ -271,6 +274,7 @@ def main():
     plt.figure(1)
     plt.plot(bee.m_history[Color.b][:], label='$m_{b}$')
     plt.plot(bee.m_history[Color.y][:], label='$m_{y}$')
+    plt.ylim((0, 3))
     plt.xlabel('visits to flowers')
     plt.ylabel('$m$', rotation='horizontal')
     plt.legend()
