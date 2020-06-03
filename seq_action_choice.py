@@ -6,16 +6,11 @@ Theoretical Neuroscience by Peter Dayan and L. F. Abbott
 
 Chapter 9 Classical Conditioning and Reinforcement Learning
 
-In classic Pavlovian experiment, the food is the unconditioned stimulus and
-the bell is the conditioned stimulus (it only works under the condition that
-there has been prior learning). This chapter refers to stimuli, rewards and
-expecation of reward.
-
-How does one predict reward?! The Rescorla-Wagner Rule.
-
 9.4 Sequential Action Choice
 
-Reward is based on a sequence of actions
+The following algorithm implements the maze task described in Section 9.4 of
+Chapter 9 and illustrated in the figure below. In this example, a hungry rat
+has to move through a maze, starting from point A, without retracing its steps.
 
 0----B----5
      |        2----C----0
@@ -25,21 +20,8 @@ Reward is based on a sequence of actions
             |
           Enter
 
-Goal: To optimize the total reward, i.e., moving left at A and right at B.
-Method: Policy iteration; the reiforcement learning version of policy iteration
-mantains and improves a stochastic policy, which determines the action at each
-decision point (i.e., left or right turns at A, B, or C) through action values
-and the softmax distribution:
-    P[a] = exp(Beta * m_a)/Sum_a' exp(Beta * m_a'),
-where a' = left or right.
-
-Policy iteration: involves two elements.
-    1] The _critic_ uses temporal difference learning to estimate the total
-    future reward that's expected when starting from A, B, or C, when the
-    current policy is followed.
-    2] The _actor_ mantains and improves the policy. Adjustment of the action
-    values at A is beased on predictions of the expected future reward associated
-    with points B and C provided by the critic.
+The numbers at the "terminating" nodes represent rewards, e.g., pieces of cheddar
+cheese ;-).
 
 @author: Efren A. Serra
 """

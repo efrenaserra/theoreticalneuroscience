@@ -6,40 +6,13 @@ Theoretical Neuroscience by Peter Dayan and L. F. Abbott
 
 Chapter 9 Classical Conditioning and Reinforcement Learning
 
-In classic Pavlovian experiment, the food is the unconditioned stimulus and
-the bell is the conditioned stimulus (it only works under the condition that
-there has been prior learning). This chapter refers to stimuli, rewards and
-expecation of reward.
+9.3 Static Action Choice
 
-How does one predict reward?! The Rescorla-Wagner Rule.
-
-9.4 Static Action Choice - Indirect Actor
-
-Reward is based on a sequence of actions
-
-0----B----5
-     |        2----C----0
-     |             | 
-     +------A------+
-            ^
-            |
-          Enter
-
-Goal: To optimize the total reward, i.e., moving left at A and right at B.
-Method: Policy iteration; the reiforcement learning version of policy iteration
-mantains and improves a stochastic policy, which determines the action at each
-decision point (i.e., left or right turns at A, B, or C) through action values
-and the softmax distribution:
-    P[a] = exp(Beta * m_a)/Sum_a' exp(Beta * m_a'),
-where a' = left or right.
- 
-Policy iteration: involves two elements.
-    1] The _critic_ uses temporal difference learning to estimate the total
-    future reward that's expected when starting from A, B, or C, when the
-    current policy is followed.
-    2] The _actor_ mantains and improves the policy. Adjustment of the action
-    values at A is beased on predictions of the expected future reward associated
-    with points B and C provided by the critic.
+The following algorithm implements an example of static action choice, where
+bees forage among flowers in search of nectar, as described in Section 9.3 of
+Chapter 9. This algorithm implements the indirect actor method for solving the
+bees foraging task. In this method, the bees learn to estimate the expected nectar 
+volumes provided by each flower by using a delta rule.
 
 @author: Efren A. Serra
 """
